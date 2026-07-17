@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: vision360
+      POSTGRES_USER: vision360
+      POSTGRES_PASSWORD: devpassword
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: ./backend
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env
+
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - web
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: ./backend
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+      - redis
+
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+  celery_beat:
+    build: ./backend
+    command: celery -A config beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+      - redis
+
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+volumes:
+  pgdata:
+
